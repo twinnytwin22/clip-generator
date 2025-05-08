@@ -1,0 +1,46 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Status</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1 {
+            color: #4CAF50;
+        }
+        .status {
+            background-color: #e7f7e7;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .status.good {
+            border: 1px solid #4CAF50;
+        }
+        .console {
+            font-family: monospace;
+            background-color: #333;
+            color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <h1>Server Status</h1>
+    <div class="status {{ 'good' if server_status == 'Running' else 'bad' }}">
+        <strong>Status:</strong> {{ server_status }}<br>
+        <strong>Uptime:</strong><br>
+        <div class="console">{{ uptime }}</div>
+    </div>
+</body>
+</html>
