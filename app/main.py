@@ -2,21 +2,13 @@ import logging
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-from app.api.status import router as status_router
+from fastapi.responses import FileResponse
+from app.api.getServerStatus import router as getServerStatus
 from app.api.generateClips import router as generateClips
+from app.api.upload import router as upload_router
 
 # Initialize app
 app = FastAPI(title="Clip Generator API", version="1.0.0")
-app.include_router(status_router)
-app.include_router(generateClips)
-
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-
-# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Use specific origins in production
@@ -25,9 +17,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.include_router(getServerStatus, prefix="/api")
+app.include_router(generateClips)
+app.include_router(upload_router)
 
+
+# Serve the index.html file
+@app.get("/")
+async def serve_index():
+    return FileResponse("index.html")  # Ensure the path is correct
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+# Enable CORS
+
+UPLOAD_DIR = "uploads"
+CLIPS_DIR = "clips"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(CLIPS_DIR, exist_ok=True)
 
 
 

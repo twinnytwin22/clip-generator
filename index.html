@@ -116,33 +116,57 @@
         <h1>Server Status Dashboard</h1>
 
         <!-- Server Status Card -->
-        <div class="status-card {{ 'good' if server_status == 'Running' else 'bad' }}">
-            <p class="status-info">Status: {{ server_status }}</p>
-            <p><strong>Server Uptime:</strong></p>
-            <div class="uptime">{{ uptime }}</div>
-        </div>
+     <!-- Server Status Card -->
+<div class="status-card {{ 'good' if server_status == 'Running' else 'bad' }}" id="status-card">
+    <p class="status-info" id="status-info">Status: {{ server_status }}</p>
+    <p><strong>Server Uptime:</strong></p>
+    <div class="uptime" id="uptime">{{ uptime }}</div>
+</div>
+
 
         <!-- Console Output -->
         <div class="console" id="logBox">
             <p><strong>Console Output:</strong></p>
-            <pre>{{ uptime }}</pre>
-
+            <pre class="uptime" id="uptime-log">{{ uptime }}</pre>
         </div>
 
-<script>
-    async function fetchLogs() {
-      try {
-        const res = await fetch("/logs");
-        const data = await res.json();
-        document.getElementById("logBox").textContent = data.logs;
-      } catch (err) {
-        console.error("Failed to fetch logs", err);
-      }
-    }
-  
-    setInterval(fetchLogs, 3000); // Refresh every 3 seconds
-    fetchLogs(); // Initial load
-  </script>
+        <script>
+            async function updateStatus() {
+                try {
+                    const res = await fetch("/api/getServerStatus");
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                       alert("Network response was not ok");
+                    }
+        
+                    // Update status and uptime
+                    const statusCard = document.getElementById("status-card");
+                    const statusInfo = document.getElementById("status-info");
+                    const uptime = document.getElementById("uptime");
+                    const uptimeLog = document.getElementById("uptime-log");
+        
+                    statusInfo.textContent = `Status: ${data.server_status}`;
+                    uptime.textContent = data.uptime;
+                    uptimeLog.textContent = data.uptime
+        
+                    // Update card style based on status
+                    if (data.server_status === "Running") {
+                        statusCard.classList.add("good");
+                        statusCard.classList.remove("bad");
+                    } else {
+                        statusCard.classList.add("bad");
+                        statusCard.classList.remove("good");
+                    }
+                } catch (error) {
+                    console.error("Error fetching server status:", error);
+                }
+            }
+        
+            // Update status every second
+            setInterval(updateStatus, 1000);
+            updateStatus();
+        </script>
 
         <!-- Reload Button -->
         <button class="btn" onclick="window.location.reload();">Reload Status</button>
