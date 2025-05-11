@@ -1,46 +1,102 @@
 import os
 from faster_whisper import WhisperModel
-from moviepy.video.io.VideoFileClip import VideoFileClip
+from utils.supabaseClient.save_srt import save_srt_to_supabase  # Supabase client instance
+from utils.convertto_srt import convert_to_srt  # Function to convert transcript to SRT format
+from utils.supabaseClient.supabase import supabase
 
-def transcribe_audio(video_path: str, start_time: float = None, end_time: float = None) -> list:
+
+def transcribe_audio(video_path: str, project_id: str, profile_id:str, chunk_size: float) -> str:
     """
-    Transcribe audio from a specific portion of a video file using Fast Whisper.
+    Transcribe audio from a video file, convert it to SRT, save it to Supabase, and update the status.
 
     Args:
         video_path (str): Path to the video file.
-        start_time (float): Start time of the segment to transcribe (in seconds).
-        end_time (float): End time of the segment to transcribe (in seconds).
+        project_id (str): ID of the project in Supabase.
+        chunk_size (float): Duration of each audio chunk to process in seconds.
 
     Returns:
-        list: List of transcript segments with 'start', 'end', and 'text'.
+        str: Status of the transcription process ("ready" or "failed").
     """
-    if not os.path.isfile(video_path):
-        raise FileNotFoundError(f"Video file not found: {video_path}")
-
-    # If start_time and end_time are provided, extract the clip
-    if start_time is not None and end_time is not None:
-        with VideoFileClip(video_path) as video:
-            clip_path = "temp_clip.mp4"
-            video.subclip(start_time, end_time).write_videofile(clip_path, codec="libx264")
-            video_path = clip_path
-
-    # Load the Fast Whisper model
     model = WhisperModel("base", device="cpu")  # Use "cuda" for GPU acceleration if available
 
-    # Transcribe the video
-    segments, _ = model.transcribe(video_path)
+    # Open the video file and extract audio
+    from moviepy.video.io.VideoFileClip import VideoFileClip
+    video = VideoFileClip(video_path)
+    audio = video.audio
 
-    # Convert segments to a list of dictionaries
+    # Prepare for real-time transcription
+    duration = audio.duration
     transcript = []
-    for segment in segments:
-        transcript.append({
-            "start": segment.start,
-            "end": segment.end,
-            "text": segment.text
-        })
 
-    # Clean up temporary clip if created
-    if start_time is not None and end_time is not None:
-        os.remove(clip_path)
+    print("Starting real-time transcription...")
+    for start_time in range(0, int(duration), int(chunk_size)):
+        end_time = min(start_time + chunk_size, duration)
+        audio_chunk_path = f"temp_audio_{start_time}_{end_time}.wav"
 
-    return transcript
+        # Export the audio chunk
+        audio.subclip(start_time, end_time).write_audiofile(audio_chunk_path, fps=16000, codec="pcm_s16le")
+
+        # Transcribe the audio chunk
+        segments, _ = model.transcribe(audio_chunk_path)
+
+        for segment in segments:
+            # Check if word-level timing is available
+            if segment.words:
+                for word in segment.words:
+                    transcript.append({
+                        "start": word.start + start_time,
+                        "end": word.end + start_time,
+                        "text": word.word
+                    })
+            else:
+                # Fallback to segment-level timing if word-level timing is unavailable
+                transcript.append({
+                    "start": segment.start + start_time,
+                    "end": segment.end + start_time,
+                    "text": segment.text
+                })
+
+        # Clean up temporary audio file
+        os.remove(audio_chunk_path)
+
+        print(f"Processed chunk: {start_time}-{end_time} seconds")
+
+    print("Real-time transcription complete.")
+
+    # Convert transcript to SRT format
+    srt_content = convert_to_srt(transcript)
+
+    # Save SRT to Supabase
+    srt_file_path = save_srt_to_supabase(project_id, profile_id, srt_content)
+
+    # Update the status in Supabase
+    update_status_in_supabase(project_id, "processing", srt_file_path)
+
+    result = {
+        "project_id": project_id,
+        "srt_file_path": srt_file_path,
+        "status": "processing", 
+        "transcript": transcript
+    }
+
+    return result
+
+
+def update_status_in_supabase(project_id: str, status: str, srt_file_path: str):
+    """
+    Update the status and SRT file path in the Supabase database.
+
+    Args:
+        project_id (str): ID of the project in Supabase.
+        status (str): Status of the transcription process ("ready" or "failed").
+        srt_file_path (str): Path to the SRT file in Supabase storage.
+    """
+    response = supabase.table("projects").update({
+        "status": status,
+        "srt_file_path": srt_file_path
+    }).eq("id", project_id).execute()
+
+    if response:
+        print("✅ Status successfully updated in Supabase.")
+    else:
+        print(f"❌ Failed to update status in Supabase: {response}")

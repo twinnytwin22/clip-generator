@@ -37,7 +37,15 @@ MANIFEST
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
-
+/uploads
+/output
+/input
+/clips
+/.vscode
+./vscode
+.vscode
+./history
+/.history
 # Unit test / coverage reports
 htmlcov/
 .tox/
