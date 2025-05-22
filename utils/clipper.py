@@ -4,7 +4,7 @@ from moviepy.video.io.VideoFileClip import VideoFileClip
 from moviepy.video.fx.all import crop
 from moviepy.video.fx.resize import resize
 from utils.supabaseClient.supabase import supabase
-
+from utils.scene_detection import detect_scenes_pyscenedetect
 
 def cut_clips(filepath, transcript, project_id, min_words=5, max_clips=1, crop_width=720, crop_height=1280):
     """
@@ -23,7 +23,11 @@ def cut_clips(filepath, transcript, project_id, min_words=5, max_clips=1, crop_w
     Returns:
         dict: A dictionary containing the list of clip metadata and a status of 'ready'.
     """
+
+    scenes = detect_scenes_pyscenedetect(filepath)
+
     # Validate transcript format
+
     if not isinstance(transcript, list) or not all(isinstance(seg, dict) for seg in transcript):
         raise ValueError("Invalid transcript format. Expected a list of dictionaries with 'start', 'end', and 'text' keys.")
 

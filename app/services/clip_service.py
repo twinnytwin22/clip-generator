@@ -67,6 +67,7 @@ def process_video(filename: str, project_id: str, profile_id: str, min_words=5, 
     """
     # Handle remote URLs
     if filename:
+        print("downloading file...")
         filename = download_file(filename,profile_id,INPUT_DIR)
 
 
@@ -78,13 +79,14 @@ def process_video(filename: str, project_id: str, profile_id: str, min_words=5, 
         raise FileNotFoundError(f"{filename} not found in {INPUT_DIR}")
 
     # Transcribe the entire video to identify segments
-    print("✂️ Cutting clips...")
+    print(" transcribing video...")
     audio = transcribe_audio(full_path, project_id, profile_id, chunk_size=5.0)
 
     projectTranscript = audio.get("transcript")
     if not projectTranscript:
         raise ValueError("No transcript generated. Please check the video file.")
 
+    print("✂️ Cutting clips...")
     clips = cut_clips(full_path, projectTranscript, project_id, min_words=min_words, max_clips=max_clips)
     if not clips.get('status') == "ready":
         raise ValueError("No clips generated. Please check the video file or criteria.")

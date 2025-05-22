@@ -6,9 +6,9 @@ from fastapi.responses import FileResponse
 from app.api.getServerStatus import router as getServerStatus
 from app.api.generateClips import router as generateClips
 from app.api.upload import router as upload_router
-
+from app.api.downloadTwitchVOD import router as downloadTwitchVOD
 # Initialize app
-app = FastAPI(title="Clip Generator API", version="1.0.0")
+app = FastAPI(title="Subport: StreamTools API", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Use specific origins in production
@@ -20,7 +20,7 @@ app.add_middleware(
 app.include_router(getServerStatus, prefix="/api")
 app.include_router(generateClips)
 app.include_router(upload_router)
-
+app.include_router(downloadTwitchVOD)
 
 # Serve the index.html file
 @app.get("/")
