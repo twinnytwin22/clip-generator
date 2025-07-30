@@ -19,7 +19,7 @@ async def generate_clips(request_data: ClipRequest):
         insert_resp = supabase.table("projects").insert({
             "profile_id": request_data.profile_id,
             "video_url": request_data.filename,
-            "title": "Video 2",
+            "title": request_data.title,
             "status": "processing"
         }).execute()
         #print(insert_resp)

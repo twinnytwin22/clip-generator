@@ -4,117 +4,84 @@ from moviepy.video.io.VideoFileClip import VideoFileClip
 from moviepy.video.fx.all import crop
 from moviepy.video.fx.resize import resize
 from utils.supabaseClient.supabase import supabase
-from utils.scene_detection import detect_scenes_pyscenedetect
+from utils.scene_detection import detect_scenes_local
 
-def cut_clips(filepath, transcript, project_id, min_words=5, max_clips=1, crop_width=720, crop_height=1280):
-    """
-    Cut and vertically crop video clips, generate thumbnails, save them to Supabase,
-    and return the clips with a status of 'ready'.
 
-    Args:
-        filepath (str): Path to the video file.
-        transcript (list): List of transcript segments with 'start', 'end', and 'text'.
-        project_id (str): ID of the project in Supabase.
-        min_words (int): Minimum number of words required in a segment to create a clip.
-        max_clips (int): Maximum number of clips to create (optional).
-        crop_width (int): Width of the cropped video (default: 720 for vertical format).
-        crop_height (int): Height of the cropped video (default: 1280 for vertical format).
+MAX_CLIPS = 3
+MIN_WORDS = 20
+CHUNK_SIZE = 30.0  # seconds
+CROP_W, CROP_H = 720, 1280
 
-    Returns:
-        dict: A dictionary containing the list of clip metadata and a status of 'ready'.
-    """
 
-    scenes = detect_scenes_pyscenedetect(filepath)
+def cut_clips(filepath,
+              transcript,
+              project_id,
+              min_words=MIN_WORDS,
+              max_clips=MAX_CLIPS,
+              crop_width=CROP_W,
+              crop_height=CROP_H):
+    # 1) detect your shot boundaries
+    scenes = detect_scenes_local(filepath)
 
-    # Validate transcript format
+    # 2) index transcript by time for quick lookup
+    #    flatten segments into (time, word_count) points
+    word_events = []
+    for seg in transcript:
+        start, end, text = seg["start"], seg["end"], seg["text"]
+        wc = len(text.split())
+        # we'll assign all words in this segment to its midpoint
+        mid = (start + end) / 2
+        word_events.append((mid, wc))
 
-    if not isinstance(transcript, list) or not all(isinstance(seg, dict) for seg in transcript):
-        raise ValueError("Invalid transcript format. Expected a list of dictionaries with 'start', 'end', and 'text' keys.")
+    def words_in_scene(t0, t1):
+        return sum(wc for t, wc in word_events if t0 <= t <= t1)
 
-    # Ensure the video file exists
-    if not os.path.exists(filepath):
-        raise FileNotFoundError(f"Video file not found: {filepath}")
-
-    # Ensure the output directory exists
-    if not os.path.exists(OUTPUT_DIR):
-        os.makedirs(OUTPUT_DIR)
-
-    clips = []
-    try:
-        video = VideoFileClip(filepath)
-    except Exception as e:
-        raise RuntimeError(f"Failed to load video file: {e}")
-
-    for i, seg in enumerate(transcript):
-        # Skip segments with fewer words than the minimum required
-        if len(seg["text"].split()) < min_words:
-            print(f"Skipping segment {i}: Not enough words ({len(seg['text'].split())} < {min_words})")
-            continue
-
-        # Stop if the maximum number of clips has been reached
-        if max_clips is not None and len(clips) >= max_clips:
-            print(f"Reached maximum number of clips: {max_clips}")
+    # 3) iterate scenes, pick the best ones
+    clips, video = [], VideoFileClip(filepath)
+    for i, (t0, t1) in enumerate(scenes):
+        if len(clips) >= max_clips:
             break
 
-        start, end = seg["start"], seg["end"]
-        print(f"Processing segment {i}: Start={start}, End={end}, Text={seg['text']}")
+        wc = words_in_scene(t0, t1)
+        if wc < min_words:
+            print(f"Scene {i} ({t0:.1f}-{t1:.1f}s) skipped ({wc} words)")
+            continue
 
-        try:
-            # Extract the clip
-            clip = video.subclip(start, end)
+        print(f"Scene {i} accepted ({t0:.1f}-{t1:.1f}s, {wc} words) → cutting clip")
+        clip = video.subclip(t0, t1)
 
-            # Resize wide videos to ensure vertical crop is possible
-            if clip.w < crop_width or clip.h < crop_height:
-                print(f"Resizing clip {i} to ensure vertical crop is possible.")
-                clip = resize(clip, height=max(crop_height, clip.h))
+        # ensure we can crop to vertical
+        if clip.w < crop_width or clip.h < crop_height:
+            clip = resize(clip, height=max(clip.h, crop_height))
 
-            # Smart crop: vertical format, center-focused
-            x_center = clip.w / 2
-            y_center = clip.h / 2
+        x_c, y_c = clip.w/2, clip.h/2
+        cropped = crop(clip,
+                       x_center=x_c,
+                       y_center=y_c,
+                       width=crop_width,
+                       height=crop_height)
 
-            if clip.w > clip.h:  # Landscape video
-                print(f"Cropping horizontal video {i} to vertical center.")
-            else:
-                print(f"Video {i} is already portrait or square.")
+        out_path = os.path.join(OUTPUT_DIR, f"clip_{i}.mp4")
+        cropped.write_videofile(out_path,
+                                codec="libx264",
+                                audio_codec="aac",
+                                preset="medium",
+                                threads=4,
+                                fps=clip.fps)
 
-            cropped_clip = crop(
-                clip,
-                x_center=x_center,
-                y_center=y_center,
-                width=crop_width,
-                height=crop_height
-            )
+        thumb = os.path.join(OUTPUT_DIR, f"thumb_{i}.jpg")
+        cropped.save_frame(thumb, t=(t0 + t1)/2)
 
-            # Output file
-            out_path = os.path.join(OUTPUT_DIR, f"clip_{i}.mp4")
-            print(f"Saving clip {i} to {out_path}")
-            cropped_clip.write_videofile(
-                out_path,
-                codec="libx264",
-                audio_codec="aac",  # Ensure audio is included
-                preset="medium",
-                threads=4,
-                fps=clip.fps
-            )
-
-            # Generate thumbnail
-            thumbnail_path = os.path.join(OUTPUT_DIR, f"thumbnail_{i}.jpg")
-            midpoint = (start + end) / 2  # Get the midpoint of the clip
-            print(f"Generating thumbnail for clip {i} at {midpoint} seconds.")
-            clip.save_frame(thumbnail_path, t=midpoint)
-
-            # Save clip and transcript to Supabase
-            clip_metadata = save_clip_to_supabase(project_id, out_path, thumbnail_path, seg["text"], start, end)
-            if clip_metadata:
-                clips.append(clip_metadata)
-
-        except Exception as e:
-            print(f"❌ Failed to process segment {i}: {e}")
+        meta = save_clip_to_supabase(project_id,
+                                     out_path,
+                                     thumb,
+                                     "",  # you can join transcripts inside [t0,t1] if you like
+                                     t0, t1)
+        if meta:
+            clips.append(meta)
 
     video.close()
-    print(f"✅ All clips processed. Total clips: {len(clips)}")
     return {"clips": clips, "status": "ready"}
-
 
 def save_clip_to_supabase(project_id, clip_path, thumbnail_path, transcript, start, end):
     """

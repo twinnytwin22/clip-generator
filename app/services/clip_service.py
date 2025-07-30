@@ -5,8 +5,9 @@ from utils.transcription import transcribe_audio
 from utils.clipper import cut_clips
 from utils.supabaseClient.supabase import supabase
 
-max_clips = 3
-
+MAX_CLIPS = 3
+MIN_WORDS = 20
+CHUNK_SIZE = 30.0  # seconds
 
 def download_file(path_in_bucket: str, profile_id: str, output_dir: str) -> str:
     """
@@ -27,18 +28,18 @@ def download_file(path_in_bucket: str, profile_id: str, output_dir: str) -> str:
     filename = os.path.basename(path_in_bucket)
     local_path = os.path.join(output_dir, filename)
 
+    # If the file already exists locally, just return it
+    if os.path.isfile(local_path):
+        print(f"✅ File already exists locally: {local_path}")
+        return local_path
+
     # Get a signed URL if profile_id is provided (indicating a private file)
     if profile_id:
         print(f"🔐 Generating signed URL for: {path_in_bucket}")
         result = supabase.storage.from_("uploads").create_signed_url(path_in_bucket, 3600)
         print(f"🔐 Signed URL: {result}")
-        # if not signed_url or "token=" not in signed_url:
-        #     raise ValueError("Invalid signed URL returned from Supabase.")
-
         url_to_download = result.get("signedURL")
     else:
-        # If public access, construct public URL
-        # Change `your-project-id` as needed
         raise ValueError("Public URL access is not supported in this context.")
 
     print(f"⬇️ Downloading: {url_to_download}")
@@ -51,60 +52,43 @@ def download_file(path_in_bucket: str, profile_id: str, output_dir: str) -> str:
     print(f"✅ File saved: {local_path}")
     return local_path
 
-
-
-def process_video(filename: str, project_id: str, profile_id: str, min_words=5, max_clips=max_clips):
+def process_video(filename: str, project_id: str, profile_id: str):
     """
     Process a video file to generate clips with captions.
 
     Args:
-        filename (str): Path to the video file or URL.
+        filename (str): Path to the video file or Supabase path.
         min_words (int): Minimum number of words required in a segment to create a clip.
         max_clips (int): Maximum number of clips to create.
 
     Returns:
-        list: List of file paths to the captioned clips.
+        dict: Result from cut_clips (clips and status).
     """
-    # Handle remote URLs
-    if filename:
-        print("downloading file...")
-        filename = download_file(filename,profile_id,INPUT_DIR)
+    # If the filename is a local file, use it directly
+    if os.path.isfile(filename):
+        full_path = filename
+        print(f"Using local file: {full_path}")
+    else:
+        # Otherwise, treat as a Supabase path and download
+        print("Downloading file from Supabase...")
+        full_path = download_file(filename, profile_id, INPUT_DIR)
+        print(f"Downloaded file to: {full_path}")
 
-
-    if not filename:
-        raise ValueError("You need files")
-
-    full_path = os.path.join(INPUT_DIR, filename)
     if not os.path.isfile(full_path):
-        raise FileNotFoundError(f"{filename} not found in {INPUT_DIR}")
+        raise FileNotFoundError(f"{full_path} not found.")
 
     # Transcribe the entire video to identify segments
-    print(" transcribing video...")
-    audio = transcribe_audio(full_path, project_id, profile_id, chunk_size=5.0)
+    print("Transcribing video...")
+    audio = transcribe_audio(full_path, project_id, profile_id, CHUNK_SIZE)
 
     projectTranscript = audio.get("transcript")
     if not projectTranscript:
         raise ValueError("No transcript generated. Please check the video file.")
 
     print("✂️ Cutting clips...")
-    clips = cut_clips(full_path, projectTranscript, project_id, min_words=min_words, max_clips=max_clips)
+    clips = cut_clips(full_path, projectTranscript, project_id, MIN_WORDS, MAX_CLIPS)
     if not clips.get('status') == "ready":
         raise ValueError("No clips generated. Please check the video file or criteria.")
     print(f"✅ Clips created: {clips}")
-
-    # Transcribe each clip and generate captions
-    # captioned_clips = []
-    # for clip in clips:
-    #     print(f"📄 Transcribing clip: {clip}")
-    #     clip_transcript = transcribe_audio(clip, project_id, chunk_size=5.0)  # Transcribe only the clip
-    #     if not clip_transcript:
-    #         print(f"⚠️ No transcript generated for clip: {clip}")
-    #         continue
-
-    #     # Add captions to the clip in real-time
-    #     caption_path = clip.replace(".mp4", "_captioned.mp4")
-    #     add_captions_to_clip(clip, clip_transcript, caption_path)
-    #     print(f"🎥 Captions added to clip: {caption_path}")
-    #     captioned_clips.append(caption_path)
 
     return clips
