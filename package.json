@@ -1,8 +1,10 @@
 {
-    "name": "fastapi-server",
-    "version": "1.0.0",
-    "scripts": {
-      "start-server": "uvicorn clip_generator.app.main:app --reload"
-    }
+  "name": "fastapi-server",
+  "version": "1.0.0",
+  "scripts": {
+    "setup-venv": "bash ./setup-env.zsh",
+    "start": "bash -c 'source .venv/bin/activate && uvicorn clip_generator.app.main:app --reload'",
+    "debug": "bash -c 'source .venv/bin/activate && uvicorn clip_generator.app.main:app --reload --log-level debug'",
+    "test": "bash -c 'source .venv/bin/activate && pytest -q'"
   }
-  
+}
