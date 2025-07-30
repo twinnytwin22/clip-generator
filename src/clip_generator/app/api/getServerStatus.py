@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 import time
 import psutil
-from utils.supabaseClient.supabase import supabase
+from clip_generator.utils.supabaseClient.supabase import supabase
 
 clips = supabase.storage.from_("clips").list()
 router = APIRouter()

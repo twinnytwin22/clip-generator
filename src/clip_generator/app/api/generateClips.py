@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 import logging
 from app.models.request import ClipRequest
 from app.services.clip_service import process_video
-from utils.supabaseClient.supabase import supabase
+from clip_generator.utils.supabaseClient.supabase import supabase
 
 
 logger = logging.getLogger(__name__)

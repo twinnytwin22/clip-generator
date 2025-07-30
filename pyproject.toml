@@ -1,2 +1,24 @@
-[tool.poetry.scripts]
-generate-clips = "main:main"
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clip-generator"
+version = "0.1.0"
+description = "FastAPI service for generating video clips"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "moviepy",
+    "python-dotenv",
+    "requests",
+    "psutil",
+]
+
+[project.scripts]
+clip-generator = "clip_generator.__main__:main"
+
+[tool.setuptools.package-data]
+clip_generator = ["index.html", "templates/*.html"]
