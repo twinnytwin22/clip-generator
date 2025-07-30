@@ -5,6 +5,8 @@
     "setup-venv": "bash ./setup-env.zsh",
     "start": "bash -c 'source .venv/bin/activate && uvicorn clip_generator.app.main:app --reload'",
     "debug": "bash -c 'source .venv/bin/activate && uvicorn clip_generator.app.main:app --reload --log-level debug'",
-    "test": "bash -c 'source .venv/bin/activate && pytest -q'"
+    "test": "bash -c 'source .venv/bin/activate && pytest -q'",
+    "install-package": "pip install -e .",
+    "begin": "npm start"
   }
 }
