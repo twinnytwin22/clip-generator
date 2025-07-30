@@ -1,5 +1,5 @@
 import os
-from clip_generator.utils.supabaseClient.supabase import supabase
+from utils.supabaseClient.supabase import supabase
 
 def save_srt_to_supabase(project_id: str, profile_id: str, srt_content: str) -> str:
     """

@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from streamlink import Streamlink, StreamError
-from clip_generator.utils.supabaseClient.supabase import supabase
+from utils.supabaseClient.supabase import supabase
 
 # ——— Logging setup ———
 logging.basicConfig(level=logging.INFO)
