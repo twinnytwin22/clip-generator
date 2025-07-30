@@ -1,8 +1,0 @@
-{
-    "name": "fastapi-server",
-    "version": "1.0.0",
-    "scripts": {
-      "start-server": "uvicorn app.main:app --reload"
-    }
-  }
-  

@@ -1,2 +1,0 @@
-[tool.poetry.scripts]
-generate-clips = "main:main"
