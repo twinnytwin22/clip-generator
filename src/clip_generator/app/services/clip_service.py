@@ -1,9 +1,9 @@
 import requests
 import os
-from config import INPUT_DIR
-from utils.transcription import transcribe_audio
-from utils.clipper import cut_clips
-from utils.supabaseClient.supabase import supabase
+from clip_generator.config import INPUT_DIR
+from clip_generator.utils.transcription import transcribe_audio
+from clip_generator.utils.clipper import cut_clips
+from clip_generator.utils.supabaseClient.supabase import supabase
 
 max_clips = 3
 

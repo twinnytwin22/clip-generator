@@ -1,7 +1,7 @@
 import time
 import requests
 import logging
-from config import OPENAI_API_KEY
+from clip_generator.config import OPENAI_API_KEY
 
 # Setup logger
 logger = logging.getLogger("clip_generator")

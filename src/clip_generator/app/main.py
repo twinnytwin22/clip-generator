@@ -3,10 +3,11 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from app.api.getServerStatus import router as getServerStatus
-from app.api.generateClips import router as generateClips
-from app.api.upload import router as upload_router
-from app.api.downloadTwitchVOD import router as downloadTwitchVOD
+from importlib import resources
+from clip_generator.app.api.getServerStatus import router as getServerStatus
+from clip_generator.app.api.generateClips import router as generateClips
+from clip_generator.app.api.upload import router as upload_router
+from clip_generator.app.api.downloadTwitchVOD import router as downloadTwitchVOD
 # Initialize app
 app = FastAPI(title="Subport: StreamTools API", version="1.0.0")
 app.add_middleware(
@@ -25,7 +26,8 @@ app.include_router(downloadTwitchVOD)
 # Serve the index.html file
 @app.get("/")
 async def serve_index():
-    return FileResponse("index.html")  # Ensure the path is correct
+    with resources.path("clip_generator", "index.html") as fp:
+        return FileResponse(fp)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
