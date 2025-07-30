@@ -1,10 +1,10 @@
 import os
-from clip_generator.config import OUTPUT_DIR
+from config import OUTPUT_DIR
 from moviepy.video.io.VideoFileClip import VideoFileClip
 from moviepy.video.fx.all import crop
 from moviepy.video.fx.resize import resize
-from clip_generator.utils.supabaseClient.supabase import supabase
-from clip_generator.utils.scene_detection import detect_scenes_pyscenedetect
+from utils.supabaseClient.supabase import supabase
+from utils.scene_detection import detect_scenes_pyscenedetect
 
 def cut_clips(filepath, transcript, project_id, min_words=5, max_clips=1, crop_width=720, crop_height=1280):
     """

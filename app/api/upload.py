@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, File
 import os
-from clip_generator.config import INPUT_DIR
+from config import INPUT_DIR
 
 router = APIRouter()
 

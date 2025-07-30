@@ -1,8 +1,8 @@
 import os
 from faster_whisper import WhisperModel
-from clip_generator.utils.supabaseClient.save_srt import save_srt_to_supabase  # Supabase client instance
-from clip_generator.utils.convertto_srt import convert_to_srt  # Function to convert transcript to SRT format
-from clip_generator.utils.supabaseClient.supabase import supabase
+from utils.supabaseClient.save_srt import save_srt_to_supabase  # Supabase client instance
+from utils.convertto_srt import convert_to_srt  # Function to convert transcript to SRT format
+from utils.supabaseClient.supabase import supabase
 
 
 def transcribe_audio(video_path: str, project_id: str, profile_id:str, chunk_size: float) -> str:
