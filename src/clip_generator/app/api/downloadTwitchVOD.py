@@ -2,7 +2,6 @@ import os
 import re
 import logging
 import subprocess
-import concurrent.futures
 import asyncio
 from fastapi import APIRouter, HTTPException
 from fastapi.concurrency import run_in_threadpool
@@ -29,10 +28,6 @@ class DownloadRequest(BaseModel):
     video_id: str
 
 router = APIRouter()
-
-def run_generate_clips(request_data: ClipRequest):
-    # If generate_clips is async, run it in an event loop
-    asyncio.run(generate_clips(request_data))
 
 @router.post("/download-twitch-vod")
 async def download_vod(req: DownloadRequest):
@@ -131,11 +126,10 @@ async def download_vod(req: DownloadRequest):
         filename=mp4_path,
         profile_id=req.profile_id,
         title=req.title,
-        video_id=req.video_id
+        video_id=req.video_id,
     )
-    
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-    executor.submit(run_generate_clips, clipRequestData)
+
+    asyncio.create_task(generate_clips(clipRequestData))
     logger.info("Clips generation for this video has started.")
 
     # 6. Return local path immediately

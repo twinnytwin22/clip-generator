@@ -1,14 +1,15 @@
 import os
+from typing import Optional
 from supabase import create_client, Client as SupabaseClient
-from supabase.client import ClientOptions
 from dotenv import load_dotenv
+
 load_dotenv()
 
-url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_KEY")
-supabase: SupabaseClient = create_client(url, key)
+url: Optional[str] = os.environ.get("SUPABASE_URL")
+key: Optional[str] = os.environ.get("SUPABASE_KEY")
 
-bucket = supabase.storage.from_("clips")
+supabase: Optional[SupabaseClient] = None
 
-print(bucket, 'CLIPS BUCKET')
+if url and key:
+    supabase = create_client(url, key)
 
