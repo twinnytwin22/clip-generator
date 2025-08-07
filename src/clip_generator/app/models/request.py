@@ -11,4 +11,5 @@ class ClipRequest(BaseModel):
     # start_time : float  # e.g., 0.0 
     # end_time: float  # e.g., 10.0
     title: Optional[Any] = "Video-" + str(uuid.uuid4())  # e.g., "My Clip Title"
+    video_id: str
     # caption: str  # e.g., "This is a caption for the clip." 

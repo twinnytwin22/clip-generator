@@ -20,6 +20,7 @@ async def generate_clips(request_data: ClipRequest):
             "profile_id": request_data.profile_id,
             "video_url": request_data.filename,
             "title": request_data.title,
+            "video_id": request_data.video_id,
             "status": "processing"
         }).execute()
         #print(insert_resp)

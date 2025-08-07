@@ -26,6 +26,7 @@ class DownloadRequest(BaseModel):
     storage: str = "local"
     quality: str = "720p"
     profile_id: str
+    video_id: str
 
 router = APIRouter()
 
@@ -35,7 +36,7 @@ def run_generate_clips(request_data: ClipRequest):
 
 @router.post("/download-twitch-vod")
 async def download_vod(req: DownloadRequest):
-    logger.info("→ Request: vod_url=%s, storage=%s, quality=%s", req.vod_url, req.storage, req.quality)
+    logger.info("→ Request: vod_url=%s, storage=%s, quality=%s, video_id=%s", req.vod_url, req.storage, req.quality, req.video_id)
 
     # 1. Extract VOD ID
     match = re.search(r"twitch\.tv/videos/(\d+)", req.vod_url)
@@ -129,7 +130,8 @@ async def download_vod(req: DownloadRequest):
     clipRequestData = ClipRequest(
         filename=mp4_path,
         profile_id=req.profile_id,
-        title=req.title
+        title=req.title,
+        video_id=req.video_id
     )
     
     executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
