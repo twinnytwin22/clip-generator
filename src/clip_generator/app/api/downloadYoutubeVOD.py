@@ -43,10 +43,10 @@ async def download_youtube_video(req: DownloadRequest):
         logger.info("→ Downloading YouTube video with ID: %s", youtube_id)
         
         # Configure yt-dlp options with fallbacks and better error handling
-        # Configure yt-dlp options with fallbacks and better error handling
         ydl_opts = {
             'format': f'bestvideo[height<={req.quality.rstrip("p")}]+bestaudio/best[height<={req.quality.rstrip("p")}]/best',
-            'outtmpl': mp4_path,
+            'outtmpl': os.path.join(OUTPUT_DIR, f'{youtube_id}.%(ext)s'),  # Use dynamic extension
+            'merge_output_format': 'mp4',  # Try to merge to mp4 when possible
             'quiet': False,  # Set to False to see download progress
             'no_warnings': False,  # Set to False to see warnings
             'ignoreerrors': False,  # Don't ignore errors
@@ -99,11 +99,39 @@ async def download_youtube_video(req: DownloadRequest):
         success = await run_in_threadpool(sync_download)
         if not success:
             raise HTTPException(500, "Error downloading YouTube video")
-        logger.info("✔ Download complete, file size: %.1f MB", os.path.getsize(mp4_path)/1e6)
+            
+        # Check for files in the output directory that match this video ID
+        # yt-dlp might save with different extensions or temp names
+        matching_files = [f for f in os.listdir(OUTPUT_DIR) if youtube_id in f]
+        
+        if not matching_files:
+            logger.error("✗ No files found for video ID: %s", youtube_id)
+            raise HTTPException(500, "Downloaded file not found")
+            
+        # Find the largest file (most likely the complete video)
+        largest_file = None
+        largest_size = 0
+        
+        for filename in matching_files:
+            file_path = os.path.join(OUTPUT_DIR, filename)
+            if os.path.isfile(file_path):
+                file_size = os.path.getsize(file_path)
+                if file_size > largest_size:
+                    largest_size = file_size
+                    largest_file = file_path
+        
+        if largest_file:
+            mp4_path = largest_file
+            logger.info("✔ Download complete, found file: %s (%.1f MB)", mp4_path, largest_size/1e6)
+        else:
+            logger.error("✗ Could not determine main video file for ID: %s", youtube_id)
+            raise HTTPException(500, "Could not determine downloaded file")
 
     # 4. Return video file details
+    file_size = os.path.getsize(mp4_path) if os.path.exists(mp4_path) else 0
+    
     return {
         "file_path": mp4_path,
         "video_id": youtube_id,
-        "size_mb": round(os.path.getsize(mp4_path)/1e6, 2)
+        "size_mb": round(file_size/1e6, 2)
     }
