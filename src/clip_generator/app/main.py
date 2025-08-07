@@ -8,6 +8,7 @@ from clip_generator.app.api.getServerStatus import router as getServerStatus
 from clip_generator.app.api.generateClips import router as generateClips
 from clip_generator.app.api.upload import router as upload_router
 from clip_generator.app.api.downloadTwitchVOD import router as downloadTwitchVOD
+from clip_generator.app.api.downloadYoutubeVOD import router as downloadYoutubeVOD
 # Initialize app
 app = FastAPI(title="Subport: StreamTools API", version="1.0.0")
 app.add_middleware(
@@ -22,6 +23,8 @@ app.include_router(getServerStatus, prefix="/api")
 app.include_router(generateClips)
 app.include_router(upload_router)
 app.include_router(downloadTwitchVOD)
+# Add YouTube router with explicit path and tags
+app.include_router(downloadYoutubeVOD, tags=["youtube"], prefix="")
 
 # Serve the index.html file
 @app.get("/")
