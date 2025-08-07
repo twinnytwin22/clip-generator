@@ -9,8 +9,10 @@ from clip_generator.app.api.generateClips import router as generateClips
 from clip_generator.app.api.upload import router as upload_router
 from clip_generator.app.api.downloadTwitchVOD import router as downloadTwitchVOD
 from clip_generator.app.api.downloadYoutubeVOD import router as downloadYoutubeVOD
+from clip_generator.app.api.clipTwitchVOD import router as clipTwitchVOD
+from clip_generator.app.api.clipYoutubeVOB import router as clipYoutubeVOD
 # Initialize app
-app = FastAPI(title="Subport: StreamTools API", version="1.0.0")
+app = FastAPI(title="Relyy Video Tools", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Use specific origins in production
@@ -22,9 +24,12 @@ app.add_middleware(
 app.include_router(getServerStatus, prefix="/api")
 app.include_router(generateClips)
 app.include_router(upload_router)
-app.include_router(downloadTwitchVOD)
-# Add YouTube router with explicit path and tags
-app.include_router(downloadYoutubeVOD, tags=["youtube"], prefix="")
+app.include_router(clipTwitchVOD, prefix="/api/clips", tags=["Twitch"])
+app.include_router(clipYoutubeVOD, prefix="/api/clips", tags=["YouTube"])
+
+# Include the download routes under /api/downloads
+app.include_router(downloadTwitchVOD, prefix="/api/downloads", tags=["Twitch"])
+app.include_router(downloadYoutubeVOD, prefix="/api/downloads", tags=["YouTube"])
 
 # Serve the index.html file
 @app.get("/")

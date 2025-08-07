@@ -2,28 +2,37 @@ import os
 import re
 import logging
 import subprocess
+import asyncio
 from fastapi import APIRouter, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 import yt_dlp  # Using yt-dlp for YouTube downloads
+from clip_generator.app.models.request import ClipRequest
+from clip_generator.app.api.generateClips import generate_clips
+from clip_generator.utils.supabaseClient.supabase import supabase
 from clip_generator.config import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-PROJECT_ROOT = os.getcwd()
-OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output")
+SUPABASE_BUCKET = 'videos'
+PROJECT_ROOT   = os.getcwd()
+OUTPUT_DIR     = os.path.join(PROJECT_ROOT, "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 class DownloadRequest(BaseModel):
     video_url: str = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"  # URL of the YouTube video to download
-    quality: str = "720p"  # Requested video quality, e.g. "720p", "1080p"
+    title: str = "Example YouTube Video"  # Title for the video (used for clip generation)
+    storage: str = "local"  # Where to store the video: "local" or "supabase"
+    quality: str = "720p"  # Requested video quality
+    profile_id: str = "user-profile-id"  # User profile ID (required for Supabase storage)
+    video_id: str = "custom-video-id"  # Custom ID for the video
 
 router = APIRouter()
 
-@router.post("/youtube", summary="Download YouTube Video", description="Downloads a YouTube video and returns its details")
+@router.post("/clip-youtube-video", summary="Download YouTube Video", description="Download a YouTube video and prepare it for clip generation")
 async def download_youtube_video(req: DownloadRequest):
-    logger.info("→ Request: video_url=%s, quality=%s", req.video_url, req.quality)
+    logger.info("→ Request: video_url=%s, storage=%s, quality=%s, video_id=%s", req.video_url, req.storage, req.quality, req.video_id)
 
     # 1. Extract YouTube video ID
     youtube_id_match = re.search(r"(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]+)", req.video_url)
@@ -101,9 +110,32 @@ async def download_youtube_video(req: DownloadRequest):
             raise HTTPException(500, "Error downloading YouTube video")
         logger.info("✔ Download complete, file size: %.1f MB", os.path.getsize(mp4_path)/1e6)
 
-    # 4. Return video file details
-    return {
-        "file_path": mp4_path,
-        "video_id": youtube_id,
-        "size_mb": round(os.path.getsize(mp4_path)/1e6, 2)
-    }
+    # 4. Optionally upload to Supabase (if requested)
+    if req.storage.lower() == "supabase":
+        logger.info("→ Uploading %s to Supabase bucket '%s'", mp4_path, SUPABASE_BUCKET)
+        if not supabase:
+            logger.error("✗ Supabase not configured")
+            raise HTTPException(500, "Supabase not configured")
+        with open(mp4_path, "rb") as f:
+            data = f.read()
+        res = supabase.storage.from_(SUPABASE_BUCKET).upload(f"{req.profile_id}/{youtube_id}.mp4", data)
+        if res.get("error"):
+            logger.error("✗ Supabase upload error: %s", res['error']['message'])
+            raise HTTPException(500, f"Supabase upload failed: {res['error']['message']}")
+        url = supabase.storage.from_(SUPABASE_BUCKET).get_public_url(f"{req.profile_id}/{youtube_id}.mp4")["publicURL"]
+        logger.info("✔ Uploaded, public URL: %s", url)
+        return {"url": url}
+
+    # 5. Start generate_clips in the background
+    clipRequestData = ClipRequest(
+        filename=mp4_path,
+        profile_id=req.profile_id,
+        title=req.title,
+        video_id=req.video_id,
+    )
+
+    asyncio.create_task(generate_clips(clipRequestData))
+    logger.info("Clips generation for this video has started.")
+
+    # 6. Return local path immediately
+    return {"local_path": mp4_path}
